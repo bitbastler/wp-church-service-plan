@@ -6,7 +6,7 @@
  * Author: Uwe & Copilot
  */
 
- 
+
 defined('ABSPATH') || exit;
 
 /* -------------------------------------------------
@@ -36,6 +36,29 @@ function church_service_create_table()
         info text,
         comment text,
         PRIMARY KEY  (id)
+    ) $charset_collate;";
+    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    dbDelta($sql);
+}
+
+/* -------------------------------------------------
+ * 📁 Upload Table Setup on Activation
+ * ------------------------------------------------- */
+register_activation_hook(__FILE__, 'church_service_create_upload_table');
+function church_service_create_upload_table()
+{
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'church_service_uploads';
+    $charset_collate = $wpdb->get_charset_collate();
+    $sql = "CREATE TABLE $table_name (
+        id BIGINT(20) NOT NULL AUTO_INCREMENT,
+        service_id MEDIUMINT(9) NOT NULL,
+        file_id BIGINT(20) NOT NULL,
+        file_name TEXT,
+        team VARCHAR(64),
+        uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        KEY service_id (service_id)
     ) $charset_collate;";
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     dbDelta($sql);
@@ -123,6 +146,7 @@ function church_service_get_team($field)
 function church_service_list_shortcode($atts)
 {
     global $wpdb;
+    ob_start();
 
     $atts = shortcode_atts(['edit' => 'false'], $atts);
     $edit_mode = $atts['edit'] === 'true';
@@ -131,48 +155,55 @@ function church_service_list_shortcode($atts)
     $from_today = isset($_GET['from_today']) ? "WHERE date >= NOW()" : "";
     $results = $wpdb->get_results("SELECT * FROM $table $from_today ORDER BY date");
 
-    if (!$results)
-        return "<p>No entries found.</p>";
+    if ($results === null) {
+        echo "<p style='color:red;'>Fehler bei der Datenbankabfrage. Tabelle: $table</p>";
+        return ob_get_clean();
+    }
+    if (!$results) {
+        echo "<p>No entries found.</p>";
+        return ob_get_clean();
+    }
 
     $columns = array_keys((array) $results[0]);
     $columns = array_filter($columns, fn($col) => $col !== 'id');
     $labels = church_service_get_labels();
 
-    $html = "<form method='get' style='margin:1em 0;'>
+    echo "<form method='get' style='margin:1em 0;'>
         <label><input type='checkbox' name='from_today' onchange='this.form.submit()'" . (isset($_GET['from_today']) ? " checked" : "") . ">
         Show future entries only</label>
     </form>";
 
-    $html .= "<div id='church_service_table_wrapper' style='overflow-x:auto;'>
+    echo "<div id='church_service_table_wrapper' style='overflow-x:auto;'>
         <table id='church_service_table' class='display' style='width:100%;'>
         <thead><tr>";
 
     foreach ($columns as $col) {
         $label = $labels[$col] ?? ucfirst($col);
         $class = ($col === 'date') ? 'class="sticky-date"' : '';
-        $html .= "<th $class>" . esc_html($label) . "</th>";
+        echo "<th $class>" . esc_html($label) . "</th>";
     }
 
-    $html .= "</tr></thead><tbody>";
+    echo "</tr></thead><tbody>";
 
     foreach ($results as $row) {
-        $html .= "<tr>";
+        echo "<tr>";
         foreach ($columns as $col) {
             $val = ($col === 'date') ? substr($row->$col, 0, 10) : $row->$col;
 
             if ($col === 'date' && $edit_mode) {
-                $edit_url = add_query_arg('edit_id', $row->id, get_permalink());
-                $val = "<a href='" . esc_url($edit_url) . "' class='cs-date-link'>" . esc_html($val) . "</a>";
+                $edit_url = add_query_arg(['edit_id' => $row->id, 'mode' => 'edit'], get_permalink());
+                $show_url = add_query_arg(['edit_id' => $row->id, 'mode' => 'show'], get_permalink());
+                $val = "<a href='" . esc_url($edit_url) . "' class='cs-date-link'>Bearbeiten</a> | <a href='" . esc_url($show_url) . "' class='cs-date-link'>Anzeigen</a> | " . esc_html(substr($row->date, 0, 10));
             }
 
             $class = $col === 'date' ? 'class="sticky-date"' : '';
-            $html .= "<td $class>$val</td>";
+            echo "<td $class>$val</td>";
         }
-        $html .= "</tr>";
+        echo "</tr>";
     }
 
-    $html .= "</tbody></table></div>";
-    $html .= "
+    echo "</tbody></table></div>";
+    echo "
     <style>
     /* 🌑 Dark Mode Table Styles */
     #church_service_table_wrapper {
@@ -228,6 +259,54 @@ function church_service_list_shortcode($atts)
     .cs-date-link:hover {
         text-decoration: underline;
     }
+
+    /* 🌑 Dark Form Design */
+    .cs-tab-nav {
+        margin-bottom: 10px;
+        display: flex;
+        flex-wrap: wrap;
+    }
+    .cs-tab-btn {
+        padding: 6px 12px;
+        border: none;
+        background: #444;
+        color: #ddd;
+        margin-right: 5px;
+        cursor: pointer;
+        border-radius: 4px 4px 0 0;
+        transition: background 0.2s ease;
+        display: flex;
+        align-items: center;
+        font-size: 1em;
+    }
+    .cs-tab-btn:hover {
+        background: #555;
+    }
+    .cs-tab-btn.active {
+        background: #222;
+        color: #fff;
+        font-weight: bold;
+    }
+    .cs-tab-btn .tab-label-text {
+        margin-left: 6px;
+    }
+    @media (max-width: 600px) {
+        .cs-tab-btn .tab-label-text {
+            display: none;
+        }
+        .cs-tab-btn {
+            min-width: 40px;
+            padding: 6px 8px;
+            font-size: 1.3em;
+        }
+    }
+    .cs-tab-content {
+        padding: 12px;
+        border: 1px solid #333;
+        border-top: none;
+        background: #1e1e1e;
+        color: #ddd;
+    }
     </style>
 
     <script>
@@ -242,7 +321,7 @@ function church_service_list_shortcode($atts)
     });
     </script>";
 
-    return $html;
+    return ob_get_clean();
 }
 add_shortcode('church_service_list', 'church_service_list_shortcode');
 
@@ -251,10 +330,17 @@ add_shortcode('church_service_list', 'church_service_list_shortcode');
  * ------------------------------------------------- */
 function church_service_form_shortcode($atts)
 {
+    ob_start();
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+
     global $wpdb;
 
-    $id = isset($_GET['edit_id']) ? intval($_GET['edit_id']) : 0;
+    // Robust: edit_id aus GET oder POST holen
+    $id = isset($_GET['edit_id']) ? intval($_GET['edit_id']) : (isset($_POST['edit_id']) ? intval($_POST['edit_id']) : 0);
     $edit_mode = $id > 0;
+    $mode = isset($_GET['mode']) ? $_GET['mode'] : ($edit_mode ? 'edit' : 'new');
+    $readonly = ($mode === 'show');
     $table = $wpdb->prefix . 'church_service_plan';
 
     $labels = church_service_get_labels();
@@ -267,168 +353,219 @@ function church_service_form_shortcode($atts)
     }
 
     if ($edit_mode) {
-        $entry = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id), ARRAY_A);
+        $entry = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id), 'ARRAY_A');
         if ($entry) {
             $data = array_merge($data, $entry);
         }
     }
-
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['church_service_form_save'])) {
+    $notice = '';
+    // Nach dem Speichern/Upload: Redirect mit edit_id, damit Uploads immer angezeigt werden
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['church_service_form_save']) && !$readonly) {
         foreach ($fields as $field) {
             $data[$field] = sanitize_text_field($_POST[$field] ?? '');
         }
-
         unset($data['id']);
-
         if ($edit_mode) {
             $wpdb->update($table, $data, ['id' => $id]);
-            echo '<div class="updated"><p><strong>Entry updated successfully.</strong></p></div>';
+            $service_id = $id;
+            $notice = '<div class="updated"><p><strong>Entry updated successfully.</strong></p></div>';
         } else {
             $wpdb->insert($table, $data);
-            echo '<div class="updated"><p><strong>New entry saved successfully.</strong></p></div>';
+            $service_id = $wpdb->insert_id;
+            // Nach Neuanlage: Redirect auf Bearbeiten-Ansicht
+            $redirect_url = add_query_arg(['edit_id' => $service_id, 'mode' => 'edit'], get_permalink());
+            if (!headers_sent()) {
+                wp_redirect($redirect_url);
+                exit;
+            } else {
+                echo "<script>window.location='" . esc_url_raw($redirect_url) . "';</script>";
+                exit;
+            }
+        }
+        // Nach Update: Redirect, damit Uploads korrekt angezeigt werden
+        $redirect_url = add_query_arg(['edit_id' => $id, 'mode' => 'edit'], get_permalink());
+        if (!headers_sent()) {
+            wp_redirect($redirect_url);
+            exit;
+        } else {
+            echo "<script>window.location='" . esc_url_raw($redirect_url) . "';</script>";
+            exit;
         }
     }
-
-    ob_start();
+    // Upload-Formular im Upload-Tab (separat vom Hauptformular)
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['church_service_uploads_submit']) && $edit_mode) {
+        if (!empty($_FILES['church_service_uploads']['name'][0])) {
+            require_once(ABSPATH . 'wp-admin/includes/file.php');
+            require_once(ABSPATH . 'wp-admin/includes/media.php');
+            require_once(ABSPATH . 'wp-admin/includes/image.php');
+            $upload_count = count($_FILES['church_service_uploads']['name']);
+            $team = sanitize_text_field($_POST['upload_team'] ?? '');
+            for ($i = 0; $i < $upload_count; $i++) {
+                if ($_FILES['church_service_uploads']['error'][$i] === UPLOAD_ERR_OK) {
+                    $file_array = [
+                        'name' => $_FILES['church_service_uploads']['name'][$i],
+                        'type' => $_FILES['church_service_uploads']['type'][$i],
+                        'tmp_name' => $_FILES['church_service_uploads']['tmp_name'][$i],
+                        'error' => $_FILES['church_service_uploads']['error'][$i],
+                        'size' => $_FILES['church_service_uploads']['size'][$i],
+                    ];
+                    $attachment_id = media_handle_sideload($file_array, 0);
+                    if (!is_wp_error($attachment_id)) {
+                        $wpdb->insert(
+                            $wpdb->prefix . 'church_service_uploads',
+                            [
+                                'service_id' => $id,
+                                'file_id' => $attachment_id,
+                                'file_name' => $_FILES['church_service_uploads']['name'][$i],
+                                'team' => $team,
+                            ]
+                        );
+                    }
+                }
+            }
+        }
+        // Nach Upload: Redirect, damit Upload-Liste aktualisiert wird
+        $redirect_url = add_query_arg(['edit_id' => $id, 'mode' => 'edit'], get_permalink());
+        if (!headers_sent()) {
+            wp_redirect($redirect_url);
+            exit;
+        } else {
+            echo "<script>window.location='" . esc_url_raw($redirect_url) . "';</script>";
+            exit;
+        }
+    }
+    // Bereits hochgeladene Dateien nach Team gruppieren
+    $uploads_by_team = [];
+    if ($edit_mode) {
+        $all_uploads = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}church_service_uploads WHERE service_id = %d",
+            $id
+        ));
+        foreach ($all_uploads as $upload) {
+            $uploads_by_team[$upload->team][] = $upload;
+        }
+    }
     ?>
     <div class="wrap">
-        <h2><?php echo $edit_mode ? 'Edit Entry' : 'New Entry'; ?></h2>
-        <form method="post" id="church_service_form">
+        <?php if (!empty($notice))
+            echo $notice; ?>
+        <h2><?php echo $edit_mode ? ($readonly ? 'Show Entry' : 'Edit Entry') : 'New Entry'; ?></h2>
+        <form method="post" id="church_service_form" enctype="multipart/form-data">
             <div class="cs-tab-nav">
                 <?php
                 $i = 0;
                 foreach (array_keys($groups) as $group_label) {
                     $active = $i === 0 ? 'active' : '';
-                    echo "<button type='button' class='cs-tab-btn $active' data-tab='tab-$i'>" . esc_html($group_label) . "</button>";
+                    $tab_id = 'tab-' . $i;
+                    $icon = mb_substr($group_label, 0, 2, 'UTF-8');
+                    $label_text = trim(mb_substr($group_label, 2, null, 'UTF-8'));
+                    echo "<button type='button' class='cs-tab-btn $active' data-tab='$tab_id'>"
+                        . "<span class='tab-label-icon'>$icon</span>"
+                        . "<span class='tab-label-text'>$label_text</span>"
+                        . "</button>";
                     $i++;
                 }
+                // Upload-Tab hinzufügen
+                $upload_tab_id = 'tab-uploads';
+                echo "<button type='button' class='cs-tab-btn' data-tab='$upload_tab_id'>"
+                    . "<span class='tab-label-icon'>📁</span>"
+                    . "<span class='tab-label-text'>Uploads</span>"
+                    . "</button>";
                 ?>
             </div>
             <?php
             $i = 0;
             foreach ($groups as $group_label => $group_fields) {
+                $tab_id = 'tab-' . $i;
                 $visible = ($i === 0) ? 'style="display:block;"' : 'style="display:none;"';
-                echo "<div class='cs-tab-content' id='tab-$i' $visible>";
+                echo "<div class='cs-tab-content' id='$tab_id' $visible>";
                 foreach ($group_fields as $field) {
                     $label = $labels[$field] ?? ucfirst($field);
                     $value = esc_attr($data[$field] ?? '');
+                    $readonly_attr = $readonly ? 'readonly disabled' : '';
                     echo "<p><label for='$field'><strong>$label</strong><br>";
-
                     $team = church_service_get_team($field);
                     if (!empty($team)) {
                         $datalist_id = "list_$field";
-                        echo "<input list='$datalist_id' id='$field' name='$field' value='$value'>";
+                        echo "<input list='$datalist_id' id='$field' name='$field' value='$value' $readonly_attr>";
                         echo "<datalist id='$datalist_id'>";
                         foreach ($team as $member) {
                             echo "<option value='" . esc_attr($member) . "'>";
                         }
                         echo "</datalist>";
                     } else {
-                        echo "<input type='text' id='$field' name='$field' value='$value'>";
+                        echo "<input type='text' id='$field' name='$field' value='$value' $readonly_attr>";
                     }
-
                     echo "</label></p>";
                 }
                 echo "</div>";
                 $i++;
             }
+            // Upload-Tab-Inhalt
+            $visible = ($i === 0) ? 'style="display:block;"' : 'style="display:none;"';
+            echo "<div class='cs-tab-content' id='$upload_tab_id' $visible>";
+            echo "<h3>Alle Uploads</h3>";
+            if (!empty($uploads_by_team)) {
+                echo "<table style='width:100%;border-collapse:collapse;margin-bottom:1em;'><thead><tr><th>Team</th><th>Datei</th><th>Download</th></tr></thead><tbody>";
+                foreach ($uploads_by_team as $team => $uploads) {
+                    foreach ($uploads as $upload) {
+                        $url = wp_get_attachment_url($upload->file_id);
+                        $name = esc_html($upload->file_name);
+                        $team_disp = esc_html($team);
+                        echo "<tr><td>$team_disp</td><td>$name</td><td><a href='" . esc_url($url) . "' target='_blank'>Download</a></td></tr>";
+                    }
+                }
+                echo "</tbody></table>";
+            } else {
+                echo "<p>Noch keine Dateien hochgeladen.</p>";
+            }
+            // Upload-Formular im Upload-Tab
+            echo "<form method='post' enctype='multipart/form-data' style='margin-top:1em;'>";
+            if ($edit_mode) {
+                echo "<input type='hidden' name='upload_service_id' value='" . intval($id) . "'>";
+            }
+            echo "<label><strong>Dateien hochladen (Team zuordnen):</strong><br>";
+            echo "<select name='upload_team' required style='margin-bottom:8px;'>";
+            foreach ($groups as $group_label => $group_fields) {
+                $team_key = !empty($group_fields[0]) ? $group_fields[0] : '';
+                if ($team_key) {
+                    echo "<option value='" . esc_attr($team_key) . "'>" . esc_html($group_label) . "</option>";
+                }
+            }
+            echo "</select> ";
+            echo "<input type='file' name='church_service_uploads[]' multiple required></label> ";
+            echo "<button type='submit' class='button button-primary' name='church_service_uploads_submit'>Dateien hochladen</button>";
+            echo "</form>";
+            echo "</div>";
             ?>
-
             <?php if ($edit_mode): ?>
                 <input type="hidden" name="edit_id" value="<?php echo intval($id); ?>">
             <?php endif; ?>
             <p>
                 <input type="submit" class="button button-primary" name="church_service_form_save"
-                    value="<?php echo $edit_mode ? 'Update' : 'Save'; ?>">
+                    value="<?php echo $readonly ? 'Dateien hochladen' : ($edit_mode ? 'Update' : 'Save'); ?>">
             </p>
         </form>
-    </div>
-    <style>
-        /* 🌑 Dark Form Design */
-        .cs-tab-nav {
-            margin-bottom: 10px;
-        }
-
-        .cs-tab-btn {
-            padding: 6px 12px;
-            border: none;
-            background: #444;
-            color: #ddd;
-            margin-right: 5px;
-            cursor: pointer;
-            border-radius: 4px 4px 0 0;
-            transition: background 0.2s ease;
-        }
-
-        .cs-tab-btn:hover {
-            background: #555;
-        }
-
-        .cs-tab-btn.active {
-            background: #222;
-            color: #fff;
-            font-weight: bold;
-        }
-
-        .cs-tab-content {
-            padding: 12px;
-            border: 1px solid #333;
-            border-top: none;
-            background: #1e1e1e;
-            color: #ddd;
-        }
-
-        #church_service_form input[type="text"],
-        #church_service_form input[list] {
-            background-color: #2a2a2a;
-            color: #f0f0f0;
-            border: 1px solid #555;
-            padding: 6px 10px;
-            border-radius: 4px;
-            width: 100%;
-            max-width: 600px;
-        }
-
-        #church_service_form input[type="text"]:focus,
-        #church_service_form input[list]:focus {
-            border-color: #6699ff;
-            outline: none;
-            box-shadow: 0 0 3px rgba(102, 153, 255, 0.5);
-        }
-
-        #church_service_form input[type="submit"] {
-            background-color: #2e7fd1;
-            border: none;
-            color: #fff;
-            padding: 8px 16px;
-            font-weight: bold;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-
-        #church_service_form input[type="submit"]:hover {
-            background-color: #1c5ca9;
-        }
-    </style>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const buttons = document.querySelectorAll('.cs-tab-btn');
-            const tabs = document.querySelectorAll('.cs-tab-content');
-            if (!buttons.length || !tabs.length) return;
-
-            buttons.forEach(btn => {
-                btn.addEventListener('click', function () {
-                    buttons.forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
-                    const target = this.getAttribute('data-tab');
-                    tabs.forEach(t => t.style.display = (t.id === target ? 'block' : 'none'));
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const buttons = document.querySelectorAll('.cs-tab-btn');
+                const tabs = document.querySelectorAll('.cs-tab-content');
+                if (!buttons.length || !tabs.length) return;
+                buttons.forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        buttons.forEach(b => b.classList.remove('active'));
+                        this.classList.add('active');
+                        const target = this.getAttribute('data-tab');
+                        tabs.forEach(t => t.style.display = (t.id === target ? 'block' : 'none'));
+                    });
                 });
             });
-        });
-    </script>
+        </script>
+    </div>
     <?php
+
+
+
     return ob_get_clean();
 }
 add_shortcode('church_service_form', 'church_service_form_shortcode');
