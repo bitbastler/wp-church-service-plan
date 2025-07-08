@@ -85,34 +85,62 @@ function church_service_next_sunday()
 /* -------------------------------------------------
  * 🏷️ Labels and Field Grouping
  * ------------------------------------------------- */
-function church_service_get_labels($lang = 'en')
+function church_service_get_labels($lang = 'de')
 {
-    return [
-        'date' => '📅 Date',
-        'welcome' => '👋 Welcome',
-        'moderation' => '🎤 Moderation',
-        'sermon' => '📖 Sermon',
-        'kids1topic' => '🧒 Kids Group 1 Topic',
-        'kids1resp' => '👨‍🏫 Kids Group 1 Leader',
-        'kids2topic' => '🧑 Kids Group 2 Topic',
-        'kids2resp' => '👩‍🏫 Kids Group 2 Leader',
-        'music_keys' => '🎹 Keyboard',
-        'music_resp' => '🎵 Music Leader',
-        'tech_sound' => '🔊 Sound',
-        'tech_presentation' => '📽️ Presentation',
-        'info' => 'ℹ️ Info',
-        'comment' => '💬 Comment'
+    $labels = [
+        'de' => [
+            'date' => '📅 Datum',
+            'welcome' => '👋 Begrüßung',
+            'moderation' => '🎤 Moderation',
+            'sermon' => '📖 Predigt',
+            'kids1topic' => '🧒 Kids 1',
+            'kids1resp' => '👨‍🏫 Kids 1 Mitarbeiter',
+            'kids2topic' => '🧑 Kids 2',
+            'kids2resp' => '👩‍🏫 Kids 2 Mitarbeiter',
+            'music_keys' => '🎹 Klavier',
+            'music_resp' => '🎵 Musik',
+            'tech_sound' => '🔊 Sound',
+            'tech_presentation' => '📽️ Präsentation',
+            'info' => 'ℹ️ Info',
+            'comment' => '💬 Kommentare'
+        ],
+        'en' => [
+            'date' => '📅 Date',
+            'welcome' => '👋 Welcome',
+            'moderation' => '🎤 Moderation',
+            'sermon' => '📖 Sermon',
+            'kids1topic' => '🧒 Kids Group 1 Topic',
+            'kids1resp' => '👨‍🏫 Kids Group 1 Leader',
+            'kids2topic' => '🧑 Kids Group 2 Topic',
+            'kids2resp' => '👩‍🏫 Kids Group 2 Leader',
+            'music_keys' => '🎹 Keyboard',
+            'music_resp' => '🎵 Music Leader',
+            'tech_sound' => '🔊 Sound',
+            'tech_presentation' => '📽️ Presentation',
+            'info' => 'ℹ️ Info',
+            'comment' => '💬 Comment'
+        ]
     ];
+    return $labels[$lang] ?? $labels['de'];
 }
 
-function church_service_get_form_groups()
+function church_service_get_form_groups($lang = 'de')
 {
-    return [
-        '📅 General' => ['date', 'welcome', 'moderation', 'sermon'],
-        '🎈 Kids Ministry' => ['kids1topic', 'kids1resp', 'kids2topic', 'kids2resp'],
-        '🎵 Music & Tech' => ['music_keys', 'music_resp', 'tech_sound', 'tech_presentation'],
-        '💬 Other' => ['info', 'comment']
+    $groups = [
+        'de' => [
+            '📅 Allgemein' => ['date', 'welcome', 'moderation', 'sermon'],
+            '🎈 Kinder' => ['kids1topic', 'kids1resp', 'kids2topic', 'kids2resp'],
+            '🎵 Musik & Technik' => ['music_keys', 'music_resp', 'tech_sound', 'tech_presentation'],
+            '💬 Sonstiges' => ['info', 'comment']
+        ],
+        'en' => [
+            '📅 General' => ['date', 'welcome', 'moderation', 'sermon'],
+            '🎈 Kids Ministry' => ['kids1topic', 'kids1resp', 'kids2topic', 'kids2resp'],
+            '🎵 Music & Tech' => ['music_keys', 'music_resp', 'tech_sound', 'tech_presentation'],
+            '💬 Other' => ['info', 'comment']
+        ]
     ];
+    return $groups[$lang] ?? $groups['de'];
 }
 
 /* -------------------------------------------------
@@ -148,11 +176,10 @@ function church_service_list_shortcode($atts)
     global $wpdb;
     ob_start();
 
-    $atts = shortcode_atts(['edit' => 'false'], $atts);
-    $edit_mode = $atts['edit'] === 'true';
-
     $table = $wpdb->prefix . 'church_service_plan';
-    $from_today = isset($_GET['from_today']) ? "WHERE date >= NOW()" : "";
+    // Standard: Nur zukünftige Einträge anzeigen, außer Checkbox ist explizit aktiviert
+    $show_all = isset($_GET['show_all']) && $_GET['show_all'] === '1';
+    $from_today = $show_all ? "" : "WHERE date >= NOW()";
     $results = $wpdb->get_results("SELECT * FROM $table $from_today ORDER BY date");
 
     if ($results === null) {
@@ -169,8 +196,8 @@ function church_service_list_shortcode($atts)
     $labels = church_service_get_labels();
 
     echo "<form method='get' style='margin:1em 0;'>
-        <label><input type='checkbox' name='from_today' onchange='this.form.submit()'" . (isset($_GET['from_today']) ? " checked" : "") . ">
-        Show future entries only</label>
+        <label><input type='checkbox' name='show_all' value='1' onchange='this.form.submit()'" . ($show_all ? " checked" : "") . ">
+        Show all</label>
     </form>";
 
     echo "<div id='church_service_table_wrapper' style='overflow-x:auto;'>
@@ -189,13 +216,13 @@ function church_service_list_shortcode($atts)
         echo "<tr>";
         foreach ($columns as $col) {
             $val = ($col === 'date') ? substr($row->$col, 0, 10) : $row->$col;
-
-            if ($col === 'date' && $edit_mode) {
-                $edit_url = add_query_arg(['edit_id' => $row->id, 'mode' => 'edit'], get_permalink());
-                $show_url = add_query_arg(['edit_id' => $row->id, 'mode' => 'show'], get_permalink());
-                $val = "<a href='" . esc_url($edit_url) . "' class='cs-date-link'>Bearbeiten</a> | <a href='" . esc_url($show_url) . "' class='cs-date-link'>Anzeigen</a> | " . esc_html(substr($row->date, 0, 10));
+            if ($col === 'date') {
+                // Link nur mit edit_id, keine weiteren Parameter
+                $form_url = add_query_arg([
+                    'edit_id' => $row->id
+                ], get_permalink());
+                $val = "<a href='" . esc_url($form_url) . "' class='cs-date-link'>" . esc_html(substr($row->date, 0, 10)) . "</a>";
             }
-
             $class = $col === 'date' ? 'class="sticky-date"' : '';
             echo "<td $class>$val</td>";
         }
@@ -307,6 +334,115 @@ function church_service_list_shortcode($atts)
         background: #1e1e1e;
         color: #ddd;
     }
+
+    .button.button-primary {
+        background: #3578e5 !important;
+        color: #fff !important;
+        border: none !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+    .button.button-primary:hover {
+        background: #285bb5 !important;
+        color: #fff !important;
+    }
+    .button {
+        background: #333;
+        color: #eee;
+        border: 1px solid #444;
+    }
+    .button:hover {
+        background: #444;
+        color: #fff;
+    }
+
+    /* Styles für select und option im Dark Mode */
+    select, select:focus {
+        background: #222 !important;
+        color: #fff !important;
+        border: 1px solid #444 !important;
+    }
+    option {
+        background: #222;
+        color: #fff;
+    }
+
+    /* 🌑 Uploads Tab: Einheitliche Button- und Input-Styles */
+    .cs-upload-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 1em;
+    }
+    .cs-upload-label {
+        margin: 0 8px 0 0;
+        font-size: 0.95em;
+        color: #bbb;
+        min-width: 180px;
+    }
+    .cs-upload-input, .cs-upload-btn {
+        height: 32px;
+        font-size: 0.95em;
+        border-radius: 4px;
+        border: 1px solid #444;
+        background: #222;
+        color: #fff;
+        padding: 0 10px;
+        box-sizing: border-box;
+        margin: 0;
+        outline: none;
+        transition: border 0.2s;
+    }
+    .cs-upload-input:focus, .cs-upload-btn:focus {
+        border: 1.5px solid #3578e5;
+    }
+    .cs-upload-btn {
+        background: #3578e5 !important;
+        color: #fff !important;
+        border: none !important;
+        min-width: 90px;
+        font-weight: 500;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.10);
+    }
+    .cs-upload-btn:hover {
+        background: #285bb5 !important;
+    }
+    .cs-upload-file {
+        background: #222;
+        color: #fff;
+        border: 1px solid #444;
+        font-size: 0.95em;
+        height: 32px;
+        padding: 0 6px;
+        min-width: 180px;
+    }
+    /* File input: Hide default button, style label as button */
+    .cs-upload-file::-webkit-file-upload-button {
+        visibility: hidden;
+    }
+    .cs-upload-file::before {
+        content: 'Durchsuchen';
+        display: inline-block;
+        background: #444;
+        color: #fff;
+        border: 1px solid #3578e5;
+        border-radius: 4px;
+        padding: 4px 12px;
+        margin-right: 8px;
+        font-size: 0.95em;
+        cursor: pointer;
+    }
+    .cs-upload-file:hover::before {
+        background: #3578e5;
+        color: #fff;
+    }
+    .cs-upload-file:active::before {
+        background: #285bb5;
+    }
+    /* For Firefox */
+    .cs-upload-file::-ms-browse {
+        visibility: hidden;
+    }
     </style>
 
     <script>
@@ -336,11 +472,19 @@ function church_service_form_shortcode($atts)
 
     global $wpdb;
 
-    // Robust: edit_id aus GET oder POST holen
+    // Shortcode-Attribute für Berechtigungen
+    $atts = shortcode_atts([
+        'edit' => 'false',
+        'new' => 'false',
+        'upload' => 'false',
+    ], $atts, 'church_service_form');
+    $allow_edit = ($atts['edit'] === 'true');
+    $allow_new = ($atts['new'] === 'true');
+    $allow_upload = ($atts['upload'] === 'true');
+
+    // Modus bestimmen
     $id = isset($_GET['edit_id']) ? intval($_GET['edit_id']) : (isset($_POST['edit_id']) ? intval($_POST['edit_id']) : 0);
     $edit_mode = $id > 0;
-    $mode = isset($_GET['mode']) ? $_GET['mode'] : ($edit_mode ? 'edit' : 'new');
-    $readonly = ($mode === 'show');
     $table = $wpdb->prefix . 'church_service_plan';
 
     $labels = church_service_get_labels();
@@ -348,18 +492,20 @@ function church_service_form_shortcode($atts)
     $fields = array_merge(...array_values($groups));
     $data = array_fill_keys($fields, '');
 
-    if (!$edit_mode) {
-        $data['date'] = church_service_next_sunday();
-    }
-
     if ($edit_mode) {
         $entry = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $id), 'ARRAY_A');
         if ($entry) {
             $data = array_merge($data, $entry);
         }
+    } else {
+        $data['date'] = church_service_next_sunday();
     }
+
+    // Felder readonly, wenn nicht erlaubt
+    $readonly = !($edit_mode ? $allow_edit : $allow_new);
+
     $notice = '';
-    // Nach dem Speichern/Upload: Redirect mit edit_id, damit Uploads immer angezeigt werden
+    // Speichern/Update
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['church_service_form_save']) && !$readonly) {
         foreach ($fields as $field) {
             $data[$field] = sanitize_text_field($_POST[$field] ?? '');
@@ -367,23 +513,15 @@ function church_service_form_shortcode($atts)
         unset($data['id']);
         if ($edit_mode) {
             $wpdb->update($table, $data, ['id' => $id]);
-            $service_id = $id;
             $notice = '<div class="updated"><p><strong>Entry updated successfully.</strong></p></div>';
         } else {
             $wpdb->insert($table, $data);
-            $service_id = $wpdb->insert_id;
-            // Nach Neuanlage: Redirect auf Bearbeiten-Ansicht
-            $redirect_url = add_query_arg(['edit_id' => $service_id, 'mode' => 'edit'], get_permalink());
-            if (!headers_sent()) {
-                wp_redirect($redirect_url);
-                exit;
-            } else {
-                echo "<script>window.location='" . esc_url_raw($redirect_url) . "';</script>";
-                exit;
-            }
+            $id = $wpdb->insert_id;
+            $edit_mode = true;
+            $notice = '<div class="updated"><p><strong>Entry created successfully.</strong></p></div>';
         }
-        // Nach Update: Redirect, damit Uploads korrekt angezeigt werden
-        $redirect_url = add_query_arg(['edit_id' => $id, 'mode' => 'edit'], get_permalink());
+        // Nach dem Speichern: Redirect auf edit_id, damit Uploads etc. angezeigt werden
+        $redirect_url = add_query_arg(['edit_id' => $id], strtok($_SERVER['REQUEST_URI'], '?'));
         if (!headers_sent()) {
             wp_redirect($redirect_url);
             exit;
@@ -400,10 +538,33 @@ function church_service_form_shortcode($atts)
             require_once(ABSPATH . 'wp-admin/includes/image.php');
             $upload_count = count($_FILES['church_service_uploads']['name']);
             $team = sanitize_text_field($_POST['upload_team'] ?? '');
+            // Hole das Gottesdienst-Datum
+            $service_date = '';
+            $service_row = $wpdb->get_row($wpdb->prepare("SELECT date FROM {$wpdb->prefix}church_service_plan WHERE id = %d", $id));
+            if ($service_row && !empty($service_row->date)) {
+                $service_date = substr($service_row->date, 0, 10); // yyyy-mm-tt
+            }
+            // Gruppenname für Dateiname aufbereiten (ohne Emoji, Umlaute ersetzen, Leerzeichen zu _)
+            $team_label = $team;
+            $team_label = preg_replace('/^[^\w]+/u', '', $team_label); // Emoji entfernen
+            $team_label = preg_replace('/[\x{1F300}-\x{1FAFF}]/u', '', $team_label); // weitere Emojis entfernen
+            $team_label = trim($team_label);
+            $team_label = str_replace(
+                ['ä','ö','ü','Ä','Ö','Ü','ß',' '],
+                ['ae','oe','ue','Ae','Oe','Ue','ss','_'],
+                $team_label
+            );
             for ($i = 0; $i < $upload_count; $i++) {
                 if ($_FILES['church_service_uploads']['error'][$i] === UPLOAD_ERR_OK) {
+                    $orig_name = $_FILES['church_service_uploads']['name'][$i];
+                    $ext = pathinfo($orig_name, PATHINFO_EXTENSION);
+                    $base = pathinfo($orig_name, PATHINFO_FILENAME);
+                    $new_name = 'csp_' . $service_date . '_' . $team_label . '_' . $base;
+                    // Nur erlaubte Zeichen im Dateinamen
+                    $new_name = preg_replace('/[^A-Za-z0-9_\-\.]/', '', $new_name);
+                    if ($ext) $new_name .= '.' . $ext;
                     $file_array = [
-                        'name' => $_FILES['church_service_uploads']['name'][$i],
+                        'name' => $new_name,
                         'type' => $_FILES['church_service_uploads']['type'][$i],
                         'tmp_name' => $_FILES['church_service_uploads']['tmp_name'][$i],
                         'error' => $_FILES['church_service_uploads']['error'][$i],
@@ -416,7 +577,7 @@ function church_service_form_shortcode($atts)
                             [
                                 'service_id' => $id,
                                 'file_id' => $attachment_id,
-                                'file_name' => $_FILES['church_service_uploads']['name'][$i],
+                                'file_name' => $new_name,
                                 'team' => $team,
                             ]
                         );
@@ -520,30 +681,43 @@ function church_service_form_shortcode($atts)
                 echo "<p>Noch keine Dateien hochgeladen.</p>";
             }
             // Upload-Formular im Upload-Tab
-            echo "<form method='post' enctype='multipart/form-data' style='margin-top:1em;'>";
-            if ($edit_mode) {
-                echo "<input type='hidden' name='upload_service_id' value='" . intval($id) . "'>";
-            }
-            echo "<label><strong>Dateien hochladen (Team zuordnen):</strong><br>";
-            echo "<select name='upload_team' required style='margin-bottom:8px;'>";
-            foreach ($groups as $group_label => $group_fields) {
-                $team_key = !empty($group_fields[0]) ? $group_fields[0] : '';
-                if ($team_key) {
-                    echo "<option value='" . esc_attr($team_key) . "'>" . esc_html($group_label) . "</option>";
+            if ($allow_upload) {
+                echo '<div class="cs-upload-row" style="margin-top:1em;">';
+                if ($edit_mode) {
+                    echo '<input type="hidden" name="upload_service_id" value="' . intval($id) . '">';
                 }
+                echo '<label class="cs-upload-label"><strong>Dateien hochladen (Team zuordnen):</strong></label>';
+                echo '<select name="upload_team" required class="cs-upload-input">';
+                foreach ($groups as $group_label => $group_fields) {
+                    echo '<option value="' . esc_attr($group_label) . '">' . esc_html($group_label) . '</option>';
+                }
+                echo '</select>';
+                echo '<input type="file" name="church_service_uploads[]" multiple class="cs-upload-input cs-upload-file">';
+                echo '<button type="submit" class="button button-primary cs-upload-btn" name="church_service_uploads_submit">Upload</button>';
+                echo '</div>';
             }
-            echo "</select> ";
-            echo "<input type='file' name='church_service_uploads[]' multiple required></label> ";
-            echo "<button type='submit' class='button button-primary' name='church_service_uploads_submit'>Dateien hochladen</button>";
-            echo "</form>";
-            echo "</div>";
+            echo "</div>"; // End Upload-Tab
+            
             ?>
             <?php if ($edit_mode): ?>
                 <input type="hidden" name="edit_id" value="<?php echo intval($id); ?>">
             <?php endif; ?>
             <p>
-                <input type="submit" class="button button-primary" name="church_service_form_save"
-                    value="<?php echo $readonly ? 'Dateien hochladen' : ($edit_mode ? 'Update' : 'Save'); ?>">
+                <?php
+                // Button-Logik
+                // Always show Save button, label depends on mode
+                if (!$edit_mode && $allow_new) {
+                    echo '<button type="submit" class="button button-primary" name="church_service_form_save" value="Save">Save</button>';
+                } elseif ($edit_mode && $allow_edit) {
+                    echo '<button type="submit" class="button button-primary" name="church_service_form_save" value="Update">Save</button>';
+                    if ($allow_new) {
+                        // New-Button im Update-Modus: Felder leeren und Datum vorbelegen
+                        $new_url = add_query_arg(['edit_id' => '', 'new_entry' => 'true'], strtok($_SERVER['REQUEST_URI'], '?'));
+                        echo ' <button type="button" class="button" onclick="window.location=\'' . esc_url($new_url) . '\'">New</button>';
+                    }
+                }
+                // Upload-Button ist im Upload-Tab-Formular
+                ?>
             </p>
         </form>
         <script>
@@ -563,8 +737,14 @@ function church_service_form_shortcode($atts)
         </script>
     </div>
     <?php
-
-
+    // Felder leeren und Datum vorbelegen, wenn new_entry=1
+    if (isset($_GET['new_entry']) && $_GET['new_entry'] === 'true') {
+        $edit_mode = false;
+        $id = 0;
+        $data = array_fill_keys($fields, '');
+        $data['date'] = church_service_next_sunday();
+        // Keine Manipulation von $allow_new mehr nötig!
+    }
 
     return ob_get_clean();
 }
@@ -592,6 +772,12 @@ function church_service_teams_page()
 
     $labels = church_service_get_labels();
     $teams = church_service_get_teams();
+    array_shift($labels);
+    array_shift($teams);
+    array_pop($labels);
+    array_pop($teams);
+    array_pop($labels);
+    array_pop($teams);
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['church_service_teams_save'])) {
         foreach ($labels as $key => $_) {
