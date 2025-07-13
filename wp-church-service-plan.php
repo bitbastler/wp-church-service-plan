@@ -235,13 +235,26 @@ function church_service_list_shortcode($atts)
     <style>
 
     #church_service_table {
+        width: 100% !important;
+    }
+
+    #church_service_table table{
+        margin: 0;
+        width: 100% !important;
     }
 
     #church_service_table th,
     #church_service_table td {
+        padding: 0px;
+        margin: 0px;
+        box-sizing: border-box;
         white-space: nowrap;
         min-width: 100px;
         text-align: left;
+    }
+
+    .dataTables_scrollHeadInner{
+        width: 100%;
     }
 
     #church_service_table tbody tr {
@@ -378,9 +391,10 @@ function church_service_list_shortcode($atts)
     <script>
     jQuery(document).ready(function($){
         var table = $('#church_service_table').DataTable({
-            autoWidth: true,
+            autoWidth: false,
             scrollX: true,
             ordering: false,
+            columnDefs: [{ targets: '_all', className: 'dt-nowrap' }],
             language: {
                 url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/en-GB.json',
                 search: 'Suche:'
@@ -760,3 +774,6 @@ function church_service_enqueue_assets()
         wp_enqueue_script('datatables', 'https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js', ['jquery'], null, true);
     }
 }
+
+
+
