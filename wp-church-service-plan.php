@@ -174,13 +174,22 @@ function church_service_get_team($field)
 function church_service_list_shortcode($atts)
 {
     global $wpdb;
+
+    // Shortcode-Attribut for detail page
+    $atts = shortcode_atts([
+        'detail_page' => 'default'
+    ], $atts, 'church_service_list_shortcode');
+
+    $detail_page = ($atts['detail_page'] === 'default' ? get_permalink() : $atts['detail_page']);
+
     ob_start();
 
     $table = $wpdb->prefix . 'church_service_plan';
     // Standard: Nur zukünftige Einträge anzeigen, außer Checkbox ist explizit aktiviert
     $show_all = isset($_GET['show_all']) && $_GET['show_all'] === '1';
     $from_today = $show_all ? "" : "WHERE date >= NOW()";
-    $results = $wpdb->get_results("SELECT * FROM $table $from_today ORDER BY date");
+    // $results = $wpdb->get_results("SELECT * FROM $table $from_today ORDER BY date");
+    $results = $wpdb->get_results("SELECT id,date,moderation,sermon,music_resp,music_keys FROM $table $from_today ORDER BY date");
 
     if ($results === null) {
         echo "<p style='color:red;'>Fehler bei der Datenbankabfrage. Tabelle: $table</p>";
@@ -201,29 +210,21 @@ function church_service_list_shortcode($atts)
     </form>";
 
     echo "<div id='church_service_table_wrapper' style='overflow-x:auto;'>
-        <table id='church_service_table' class='display' style='width:100%;'>
+        <table id='church_service_table' class='cell-border display compact' style='width:80%;'>
         <thead><tr>";
 
     foreach ($columns as $col) {
         $label = $labels[$col] ?? ucfirst($col);
-        $class = ($col === 'date') ? 'class="sticky-date"' : '';
+        $class = '';
         echo "<th $class>" . esc_html($label) . "</th>";
     }
 
     echo "</tr></thead><tbody>";
 
     foreach ($results as $row) {
-        echo "<tr>";
+        echo "<tr data-id='" . esc_attr($row->id) . "'>";
         foreach ($columns as $col) {
             $val = ($col === 'date') ? substr($row->$col, 0, 10) : $row->$col;
-            if ($col === 'date') {
-                // Link nur mit edit_id, keine weiteren Parameter
-                $form_url = add_query_arg([
-                    'edit_id' => $row->id
-                ], get_permalink());
-                $val = "<a href='" . esc_url($form_url) . "' class='cs-date-link'>" . esc_html(substr($row->date, 0, 10)) . "</a>";
-            }
-            $class = $col === 'date' ? 'class="sticky-date"' : '';
             echo "<td $class>$val</td>";
         }
         echo "</tr>";
@@ -232,91 +233,28 @@ function church_service_list_shortcode($atts)
     echo "</tbody></table></div>";
     echo "
     <style>
-    /* 🌑 Dark Mode Table Styles */
-    #church_service_table_wrapper {
-        background-color: #1e1e1e;
-        color: #ddd;
-        padding: 10px;
-        border-radius: 6px;
-        overflow-x: auto;
-    }
 
     #church_service_table {
-        min-width: 1000px;
-        border-collapse: separate;
-        background-color: #1e1e1e;
-        color: #ccc;
     }
 
     #church_service_table th,
     #church_service_table td {
         white-space: nowrap;
-        padding: 6px 10px;
+        min-width: 100px;
         text-align: left;
-        border-bottom: 1px solid #333;
     }
 
-    #church_service_table th {
-        background-color: #2a2a2a;
-        color: #eee;
+    #church_service_table tbody tr {
+        cursor: pointer;
     }
 
-    #church_service_table tbody tr:hover {
-        background-color: #2c2c2c;
-    }
 
-    /* Sticky Date Column */
-    #church_service_table td.sticky-date,
-    #church_service_table th.sticky-date {
-        background-color: #252525 !important;
-        color: #eee;
-        position: sticky !important;
-        left: 0;
-        z-index: 3;
-        box-shadow: 2px 0 4px rgba(0,0,0,0.5);
-        font-weight: bold;
-    }
-
-    /* Link Style in Date Cell */
-    .cs-date-link {
-        color: #80b3ff;
-        text-decoration: none;
-    }
-
-    .cs-date-link:hover {
-        text-decoration: underline;
-    }
-
-    /* 🌑 Dark Form Design */
     .cs-tab-nav {
         margin-bottom: 10px;
         display: flex;
         flex-wrap: wrap;
     }
-    .cs-tab-btn {
-        padding: 6px 12px;
-        border: none;
-        background: #444;
-        color: #ddd;
-        margin-right: 5px;
-        cursor: pointer;
-        border-radius: 4px 4px 0 0;
-        transition: background 0.2s ease;
-        display: flex;
-        align-items: center;
-        font-size: 1em;
-    }
-    .cs-tab-btn:hover {
-        background: #555;
-    }
-    .cs-tab-btn.active {
-        background: #222;
-        color: #fff;
-        font-weight: bold;
-    }
-    .cs-tab-btn .tab-label-text {
-        margin-left: 6px;
-    }
+
     @media (max-width: 600px) {
         .cs-tab-btn .tab-label-text {
             display: none;
@@ -331,8 +269,6 @@ function church_service_list_shortcode($atts)
         padding: 12px;
         border: 1px solid #333;
         border-top: none;
-        background: #1e1e1e;
-        color: #ddd;
     }
 
     .button.button-primary {
@@ -357,13 +293,9 @@ function church_service_list_shortcode($atts)
 
     /* Styles für select und option im Dark Mode */
     select, select:focus {
-        background: #222 !important;
-        color: #fff !important;
         border: 1px solid #444 !important;
     }
     option {
-        background: #222;
-        color: #fff;
     }
 
     /* 🌑 Uploads Tab: Einheitliche Button- und Input-Styles */
@@ -384,8 +316,6 @@ function church_service_list_shortcode($atts)
         font-size: 0.95em;
         border-radius: 4px;
         border: 1px solid #444;
-        background: #222;
-        color: #fff;
         padding: 0 10px;
         box-sizing: border-box;
         margin: 0;
@@ -447,12 +377,19 @@ function church_service_list_shortcode($atts)
 
     <script>
     jQuery(document).ready(function($){
-        $('#church_service_table').DataTable({
-            autoWidth: false,
+        var table = $('#church_service_table').DataTable({
+            autoWidth: true,
             scrollX: true,
+            ordering: false,
             language: {
-                url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/en-GB.json'
+                url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/en-GB.json',
+                search: 'Suche:'
             }
+        });
+        $('#church_service_table').on('click', 'tr', function () {
+            var id = $(this).data('id');
+            window.location.href = '$detail_page?edit_id=' + encodeURIComponent(id);
+            //alert('Du hast die Zeile mit folgendem Inhalt geklickt:'+id);
         });
     });
     </script>";
@@ -550,8 +487,8 @@ function church_service_form_shortcode($atts)
             $team_label = preg_replace('/[\x{1F300}-\x{1FAFF}]/u', '', $team_label); // weitere Emojis entfernen
             $team_label = trim($team_label);
             $team_label = str_replace(
-                ['ä','ö','ü','Ä','Ö','Ü','ß',' '],
-                ['ae','oe','ue','Ae','Oe','Ue','ss','_'],
+                ['ä', 'ö', 'ü', 'Ä', 'Ö', 'Ü', 'ß', ' '],
+                ['ae', 'oe', 'ue', 'Ae', 'Oe', 'Ue', 'ss', '_'],
                 $team_label
             );
             for ($i = 0; $i < $upload_count; $i++) {
@@ -562,7 +499,8 @@ function church_service_form_shortcode($atts)
                     $new_name = 'csp_' . $service_date . '_' . $team_label . '_' . $base;
                     // Nur erlaubte Zeichen im Dateinamen
                     $new_name = preg_replace('/[^A-Za-z0-9_\-\.]/', '', $new_name);
-                    if ($ext) $new_name .= '.' . $ext;
+                    if ($ext)
+                        $new_name .= '.' . $ext;
                     $file_array = [
                         'name' => $new_name,
                         'type' => $_FILES['church_service_uploads']['type'][$i],
@@ -697,7 +635,7 @@ function church_service_form_shortcode($atts)
                 echo '</div>';
             }
             echo "</div>"; // End Upload-Tab
-            
+        
             ?>
             <?php if ($edit_mode): ?>
                 <input type="hidden" name="edit_id" value="<?php echo intval($id); ?>">
