@@ -236,26 +236,17 @@ function church_service_list_shortcode($atts)
 
     #church_service_table {
         width: 100% !important;
+        box-sizing: border-box;
     }
 
-    #church_service_table table{
-        margin: 0;
-        width: 100% !important;
-    }
 
     #church_service_table th,
     #church_service_table td {
-        padding: 0px;
-        margin: 0px;
-        box-sizing: border-box;
         white-space: nowrap;
         min-width: 100px;
         text-align: left;
     }
 
-    .dataTables_scrollHeadInner{
-        width: 100%;
-    }
 
     #church_service_table tbody tr {
         cursor: pointer;
