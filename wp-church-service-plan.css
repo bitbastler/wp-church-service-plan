@@ -1,0 +1,84 @@
+/* wp-church-service-plan.css
+ * Styles for the Church Service Plan plugin
+ */
+
+
+:root {
+    --width-of-form: 800px;
+}
+
+#church_service_wrapper {
+    width: 100%;
+    /*background: #EFEFEF;*/
+    max-width: var(--width-of-form);
+    overflow-x: auto;
+    /*box-shadow: 0px 23px 14px -21px rgba(0,0,0,0.5);*/
+}
+
+#church_service_table {
+    box-sizing: border-box;
+}
+
+#church_service_table th,
+#church_service_table td {
+    white-space: nowrap;
+    min-width: 100px;
+    text-align: left;
+}
+
+#church_service_table tbody tr {
+    cursor: pointer;
+}
+
+
+.cs-tab-nav {
+    margin-bottom: 10px;
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.cs-tab-btn {
+    border: 0px !important;
+    border-radius: 0px !important;
+    background-color: var(--e-global-color-accent) !important;
+    color: var(--e-global-color-9533bfd) !important;
+    padding: 8px 12px;
+    margin-right: 3px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 1.0em;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.cs-tab-btn:hover {
+    background-color: var(--e-global-color-primary) !important;
+}
+
+@media (max-width: 600px) {
+    .cs-tab-btn .tab-label-text {
+        display: none;
+    }
+
+    .cs-tab-btn {
+        min-width: 40px;
+        padding: 6px 8px;
+        font-size: 1.3em;
+    }
+}
+
+.cs-tab-content {}
+
+
+/* Styles für select und option im Dark Mode */
+select,
+select:focus {
+    border: 1px solid #444 !important;
+}
+
+option {}
+
+#info {
+    width: var(--width-of-form);
+}

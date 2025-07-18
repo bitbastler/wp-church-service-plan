@@ -204,14 +204,15 @@ function church_service_list_shortcode($atts)
     $columns = array_filter($columns, fn($col) => $col !== 'id');
     $labels = church_service_get_labels();
 
+    echo "<div id='church_service_wrapper' >";
+
     echo "<form method='get' style='margin:1em 0;'>
         <label><input type='checkbox' name='show_all' value='1' onchange='this.form.submit()'" . ($show_all ? " checked" : "") . ">
         Show all</label>
     </form>";
 
-    echo "<div id='church_service_table_wrapper' style='overflow-x:auto;'>
-        <table id='church_service_table' class='cell-border display compact' style='width:80%;'>
-        <thead><tr>";
+    echo "<table id='church_service_table' class='cell-border display compact'>
+          <thead><tr>";
 
     foreach ($columns as $col) {
         $label = $labels[$col] ?? ucfirst($col);
@@ -230,155 +231,8 @@ function church_service_list_shortcode($atts)
         echo "</tr>";
     }
 
-    echo "</tbody></table></div>";
-    echo "
-    <style>
-
-    #church_service_table {
-        width: 100% !important;
-        box-sizing: border-box;
-    }
-
-
-    #church_service_table th,
-    #church_service_table td {
-        white-space: nowrap;
-        min-width: 100px;
-        text-align: left;
-    }
-
-
-    #church_service_table tbody tr {
-        cursor: pointer;
-    }
-
-
-    .cs-tab-nav {
-        margin-bottom: 10px;
-        display: flex;
-        flex-wrap: wrap;
-    }
-
-    @media (max-width: 600px) {
-        .cs-tab-btn .tab-label-text {
-            display: none;
-        }
-        .cs-tab-btn {
-            min-width: 40px;
-            padding: 6px 8px;
-            font-size: 1.3em;
-        }
-    }
-    .cs-tab-content {
-        padding: 12px;
-        border: 1px solid #333;
-        border-top: none;
-    }
-
-    .button.button-primary {
-        background: #3578e5 !important;
-        color: #fff !important;
-        border: none !important;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-    }
-    .button.button-primary:hover {
-        background: #285bb5 !important;
-        color: #fff !important;
-    }
-    .button {
-        background: #333;
-        color: #eee;
-        border: 1px solid #444;
-    }
-    .button:hover {
-        background: #444;
-        color: #fff;
-    }
-
-    /* Styles für select und option im Dark Mode */
-    select, select:focus {
-        border: 1px solid #444 !important;
-    }
-    option {
-    }
-
-    /* 🌑 Uploads Tab: Einheitliche Button- und Input-Styles */
-    .cs-upload-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 1em;
-    }
-    .cs-upload-label {
-        margin: 0 8px 0 0;
-        font-size: 0.95em;
-        color: #bbb;
-        min-width: 180px;
-    }
-    .cs-upload-input, .cs-upload-btn {
-        height: 32px;
-        font-size: 0.95em;
-        border-radius: 4px;
-        border: 1px solid #444;
-        padding: 0 10px;
-        box-sizing: border-box;
-        margin: 0;
-        outline: none;
-        transition: border 0.2s;
-    }
-    .cs-upload-input:focus, .cs-upload-btn:focus {
-        border: 1.5px solid #3578e5;
-    }
-    .cs-upload-btn {
-        background: #3578e5 !important;
-        color: #fff !important;
-        border: none !important;
-        min-width: 90px;
-        font-weight: 500;
-        cursor: pointer;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.10);
-    }
-    .cs-upload-btn:hover {
-        background: #285bb5 !important;
-    }
-    .cs-upload-file {
-        background: #222;
-        color: #fff;
-        border: 1px solid #444;
-        font-size: 0.95em;
-        height: 32px;
-        padding: 0 6px;
-        min-width: 180px;
-    }
-    /* File input: Hide default button, style label as button */
-    .cs-upload-file::-webkit-file-upload-button {
-        visibility: hidden;
-    }
-    .cs-upload-file::before {
-        content: 'Durchsuchen';
-        display: inline-block;
-        background: #444;
-        color: #fff;
-        border: 1px solid #3578e5;
-        border-radius: 4px;
-        padding: 4px 12px;
-        margin-right: 8px;
-        font-size: 0.95em;
-        cursor: pointer;
-    }
-    .cs-upload-file:hover::before {
-        background: #3578e5;
-        color: #fff;
-    }
-    .cs-upload-file:active::before {
-        background: #285bb5;
-    }
-    /* For Firefox */
-    .cs-upload-file::-ms-browse {
-        visibility: hidden;
-    }
-    </style>
-
+    echo "</tbody></table></div>
+    
     <script>
     jQuery(document).ready(function($){
         var table = $('#church_service_table').DataTable({
@@ -550,119 +404,128 @@ function church_service_form_shortcode($atts)
         }
     }
     ?>
-    <div class="wrap">
+    <div id="church_service_wrapper" class="wrap">
         <?php if (!empty($notice))
             echo $notice; ?>
-        <h2><?php echo $edit_mode ? ($readonly ? 'Show Entry' : 'Edit Entry') : 'New Entry'; ?></h2>
-        <form method="post" id="church_service_form" enctype="multipart/form-data">
-            <div class="cs-tab-nav">
+        <h2><?php echo $edit_mode ? ($readonly ? 'Show Entry' : 'Gottesdienst') : 'Gottesdienst'; ?></h2>
+        <div>
+            <form method="post" id="church_service_form" enctype="multipart/form-data">
+                <div class="cs-tab-nav">
+                    <?php
+                    $i = 0;
+                    foreach (array_keys($groups) as $group_label) {
+                        $active = $i === 0 ? 'active' : '';
+                        $tab_id = 'tab-' . $i;
+                        $icon = mb_substr($group_label, 0, 2, 'UTF-8');
+                        $label_text = trim(mb_substr($group_label, 2, null, 'UTF-8'));
+                        echo "<button type='button' class='cs-tab-btn $active' data-tab='$tab_id'>"
+                            . "<span class='tab-label-icon'>$icon</span>"
+                            . "<span class='tab-label-text'>$label_text</span>"
+                            . "</button>";
+                        $i++;
+                    }
+                    // Upload-Tab hinzufügen
+                    $upload_tab_id = 'tab-uploads';
+                    if ($edit_mode) {
+                        echo "<button type='button' class='cs-tab-btn' data-tab='$upload_tab_id'>"
+                            . "<span class='tab-label-icon'>📁</span>"
+                            . "<span class='tab-label-text'>Uploads</span>"
+                            . "</button>";
+                    }
+                    ?>
+                </div>
                 <?php
                 $i = 0;
-                foreach (array_keys($groups) as $group_label) {
-                    $active = $i === 0 ? 'active' : '';
+                foreach ($groups as $group_label => $group_fields) {
                     $tab_id = 'tab-' . $i;
-                    $icon = mb_substr($group_label, 0, 2, 'UTF-8');
-                    $label_text = trim(mb_substr($group_label, 2, null, 'UTF-8'));
-                    echo "<button type='button' class='cs-tab-btn $active' data-tab='$tab_id'>"
-                        . "<span class='tab-label-icon'>$icon</span>"
-                        . "<span class='tab-label-text'>$label_text</span>"
-                        . "</button>";
+                    $visible = ($i === 0) ? 'style="display:block;"' : 'style="display:none;"';
+                    echo "<div class='cs-tab-content' id='$tab_id' $visible>";
+                    // echo "$group_label";
+                    foreach ($group_fields as $field) {
+                        $label = $labels[$field] ?? ucfirst($field);
+                        $value = esc_attr($data[$field] ?? '');
+                        $readonly_attr = $readonly ? 'readonly disabled' : '';
+                        echo "<p><label for='$field'><strong>$label</strong><br>";
+                        $team = church_service_get_team($field);
+                        if (!empty($team)) {
+                            $datalist_id = "list_$field";
+                            echo "<input list='$datalist_id' id='$field' name='$field' value='$value' $readonly_attr>";
+                            echo "<datalist id='$datalist_id'>";
+                            foreach ($team as $member) {
+                                echo "<option value='" . esc_attr($member) . "'>";
+                            }
+                            echo "</datalist>";
+                        } else {
+                            if ($field === 'info') {
+                                echo "<textarea rows='5' id='$field' name='$field' $readonly_attr>$value</textarea>";
+                            } else {
+                                echo "<input type='text' id='$field' name='$field' value='$value' $readonly_attr>";
+                            }
+                        }
+                        echo "</label></p>";
+                    }
+                    echo "</div>";
                     $i++;
                 }
-                // Upload-Tab hinzufügen
-                $upload_tab_id = 'tab-uploads';
-                echo "<button type='button' class='cs-tab-btn' data-tab='$upload_tab_id'>"
-                    . "<span class='tab-label-icon'>📁</span>"
-                    . "<span class='tab-label-text'>Uploads</span>"
-                    . "</button>";
-                ?>
-            </div>
-            <?php
-            $i = 0;
-            foreach ($groups as $group_label => $group_fields) {
-                $tab_id = 'tab-' . $i;
+                // Upload-Tab-Inhalt
                 $visible = ($i === 0) ? 'style="display:block;"' : 'style="display:none;"';
-                echo "<div class='cs-tab-content' id='$tab_id' $visible>";
-                foreach ($group_fields as $field) {
-                    $label = $labels[$field] ?? ucfirst($field);
-                    $value = esc_attr($data[$field] ?? '');
-                    $readonly_attr = $readonly ? 'readonly disabled' : '';
-                    echo "<p><label for='$field'><strong>$label</strong><br>";
-                    $team = church_service_get_team($field);
-                    if (!empty($team)) {
-                        $datalist_id = "list_$field";
-                        echo "<input list='$datalist_id' id='$field' name='$field' value='$value' $readonly_attr>";
-                        echo "<datalist id='$datalist_id'>";
-                        foreach ($team as $member) {
-                            echo "<option value='" . esc_attr($member) . "'>";
+                echo "<div class='cs-tab-content' id='$upload_tab_id' $visible>";
+                echo "<h3>Alle Uploads</h3>";
+                if (!empty($uploads_by_team)) {
+                    echo "<table style='width:100%;border-collapse:collapse;margin-bottom:1em;'><thead><tr><th>Team</th><th>Datei</th><th>Download</th></tr></thead><tbody>";
+                    foreach ($uploads_by_team as $team => $uploads) {
+                        foreach ($uploads as $upload) {
+                            $url = wp_get_attachment_url($upload->file_id);
+                            $name = esc_html($upload->file_name);
+                            $team_disp = esc_html($team);
+                            echo "<tr><td>$team_disp</td><td>$name</td><td><a href='" . esc_url($url) . "' target='_blank'>Download</a></td></tr>";
                         }
-                        echo "</datalist>";
-                    } else {
-                        echo "<input type='text' id='$field' name='$field' value='$value' $readonly_attr>";
                     }
-                    echo "</label></p>";
+                    echo "</tbody></table>";
+                } else {
+                    echo "<p>Noch keine Dateien hochgeladen.</p>";
                 }
-                echo "</div>";
-                $i++;
-            }
-            // Upload-Tab-Inhalt
-            $visible = ($i === 0) ? 'style="display:block;"' : 'style="display:none;"';
-            echo "<div class='cs-tab-content' id='$upload_tab_id' $visible>";
-            echo "<h3>Alle Uploads</h3>";
-            if (!empty($uploads_by_team)) {
-                echo "<table style='width:100%;border-collapse:collapse;margin-bottom:1em;'><thead><tr><th>Team</th><th>Datei</th><th>Download</th></tr></thead><tbody>";
-                foreach ($uploads_by_team as $team => $uploads) {
-                    foreach ($uploads as $upload) {
-                        $url = wp_get_attachment_url($upload->file_id);
-                        $name = esc_html($upload->file_name);
-                        $team_disp = esc_html($team);
-                        echo "<tr><td>$team_disp</td><td>$name</td><td><a href='" . esc_url($url) . "' target='_blank'>Download</a></td></tr>";
+                // Upload-Formular im Upload-Tab
+                if ($allow_upload) {
+                    echo '<div class="cs-upload" style="margin-top:1em;">';
+                    if ($edit_mode) {
+                        echo '<input type="hidden" name="upload_service_id" value="' . intval($id) . '">';
                     }
-                }
-                echo "</tbody></table>";
-            } else {
-                echo "<p>Noch keine Dateien hochgeladen.</p>";
-            }
-            // Upload-Formular im Upload-Tab
-            if ($allow_upload) {
-                echo '<div class="cs-upload-row" style="margin-top:1em;">';
-                if ($edit_mode) {
-                    echo '<input type="hidden" name="upload_service_id" value="' . intval($id) . '">';
-                }
-                echo '<label class="cs-upload-label"><strong>Dateien hochladen (Team zuordnen):</strong></label>';
-                echo '<select name="upload_team" required class="cs-upload-input">';
-                foreach ($groups as $group_label => $group_fields) {
-                    echo '<option value="' . esc_attr($group_label) . '">' . esc_html($group_label) . '</option>';
-                }
-                echo '</select>';
-                echo '<input type="file" name="church_service_uploads[]" multiple class="cs-upload-input cs-upload-file">';
-                echo '<button type="submit" class="button button-primary cs-upload-btn" name="church_service_uploads_submit">Upload</button>';
-                echo '</div>';
-            }
-            echo "</div>"; // End Upload-Tab
-        
-            ?>
-            <?php if ($edit_mode): ?>
-                <input type="hidden" name="edit_id" value="<?php echo intval($id); ?>">
-            <?php endif; ?>
-            <p>
-                <?php
-                // Button-Logik
-                // Always show Save button, label depends on mode
-                if (!$edit_mode && $allow_new) {
-                    echo '<button type="submit" class="button button-primary" name="church_service_form_save" value="Save">Save</button>';
-                } elseif ($edit_mode && $allow_edit) {
-                    echo '<button type="submit" class="button button-primary" name="church_service_form_save" value="Update">Save</button>';
-                    if ($allow_new) {
-                        // New-Button im Update-Modus: Felder leeren und Datum vorbelegen
-                        $new_url = add_query_arg(['edit_id' => '', 'new_entry' => 'true'], strtok($_SERVER['REQUEST_URI'], '?'));
-                        echo ' <button type="button" class="button" onclick="window.location=\'' . esc_url($new_url) . '\'">New</button>';
+                    echo '<label"><strong>Dateien hochladen (Team zuordnen):</strong></label>';
+                    echo '<select name="upload_team" required>';
+                    foreach ($groups as $group_label => $group_fields) {
+                        echo '<option value="' . esc_attr($group_label) . '">' . esc_html($group_label) . '</option>';
                     }
+                    echo '</select>';
+                    echo '<input type="file" name="church_service_uploads[]" multiple >';
+                    echo '<button type="submit" class="cs-tab-btn" name="church_service_uploads_submit">Upload</button>';
+                    echo '</div>';
                 }
-                // Upload-Button ist im Upload-Tab-Formular
+                echo "</div>"; // End Upload-Tab
+            
                 ?>
-            </p>
-        </form>
+                <?php if ($edit_mode): ?>
+                    <input type="hidden" name="edit_id" value="<?php echo intval($id); ?>">
+                <?php endif; ?>
+                <p>
+                    <?php
+                    // Button-Logik
+                    // Always show Save button, label depends on mode
+                    if (!$edit_mode && $allow_new) {
+                        echo '<button type="submit" class="cs-tab-btn" name="church_service_form_save" value="Save">Save</button>';
+                    } elseif ($edit_mode && $allow_edit) {
+                        echo '<button type="submit" class="cs-tab-btn" name="church_service_form_save" value="Update">Save</button>';
+                        if ($allow_new) {
+                            // New-Button im Update-Modus: Felder leeren und Datum vorbelegen
+                            $new_url = add_query_arg(['edit_id' => '', 'new_entry' => 'true'], strtok($_SERVER['REQUEST_URI'], '?'));
+                            echo ' <button type="button" class="cs-tab-btn" onclick="window.location=\'' . esc_url($new_url) . '\'">New</button>';
+                        }
+                    }
+                    // Upload-Button ist im Upload-Tab-Formular
+                    ?>
+                </p>
+            </form>
+        </div>
         <script>
             document.addEventListener('DOMContentLoaded', function () {
                 const buttons = document.querySelectorAll('.cs-tab-btn');
@@ -760,10 +623,12 @@ function church_service_enqueue_assets()
 {
     if (!is_admin()) {
         wp_enqueue_script('jquery');
+        wp_enqueue_style('wp-church-service-plan-style', plugin_dir_url(__FILE__) . 'wp-church-service-plan.css');
 
         wp_enqueue_style('datatables', 'https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css');
         wp_enqueue_script('datatables', 'https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js', ['jquery'], null, true);
     }
+
 }
 
 
